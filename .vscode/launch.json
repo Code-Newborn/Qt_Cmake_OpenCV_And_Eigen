@@ -1,0 +1,41 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Run MinGW Debug",
+            "type": "cppdbg",
+            "request": "launch",
+            // 可执行文件路径：由 CMake 输出到 ./Debug
+            "program": "${workspaceFolder}/Debug/Qt_Cmake_OpenCV_And_Eigen.exe",
+            "cwd": "${workspaceFolder}/Debug",
+            "preLaunchTask": "Build MinGW Debug",
+            // gdb 调试器路径
+            "miDebuggerPath": "${config:mingwGdb}",
+            "MIMode": "gdb",
+            "environment": [
+                {
+                    "name": "PATH",
+                    "value": "${config:mingwQtRoot}/bin;${config:mingwOpenCvBin};${env:PATH}"
+                }
+            ],
+            "externalConsole": false
+        },
+        {
+            "name": "Run MinGW Release",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/Release/Qt_Cmake_OpenCV_And_Eigen.exe",
+            "cwd": "${workspaceFolder}/Release",
+            "preLaunchTask": "Build MinGW Release",
+            "miDebuggerPath": "${config:mingwGdb}",
+            "MIMode": "gdb",
+            "environment": [
+                {
+                    "name": "PATH",
+                    "value": "${config:mingwQtRoot}/bin;${config:mingwOpenCvBin};${env:PATH}"
+                }
+            ],
+            "externalConsole": false
+        }
+    ]
+}

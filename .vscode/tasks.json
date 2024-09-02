@@ -1,0 +1,58 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Configure MinGW Debug",
+			"type": "shell",
+			"command": "cmake -S . -B build_mingw_debug -G \"MinGW Makefiles\" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_C_COMPILER=${config:mingwGcc} -DCMAKE_CXX_COMPILER=${config:mingwGxx}",
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "Configure MinGW Release",
+			"type": "shell",
+			"command": "cmake -S . -B build_mingw_release -G \"MinGW Makefiles\" -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_C_COMPILER=${config:mingwGcc} -DCMAKE_CXX_COMPILER=${config:mingwGxx}",
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "Build MinGW Debug",
+			"type": "shell",
+			"command": "cmake --build build_mingw_debug",
+			"options": {
+				"cwd": "${workspaceFolder}",
+				"env": {
+					// 运行/链接时需要找到 Qt / OpenCV DLL
+					"QTDIR": "${config:mingwQtRoot}",
+					"PATH": "${config:mingwQtRoot}/bin;${config:mingwOpenCvBin};${env:PATH}"
+				}
+			},
+			"dependsOn": [
+				"Configure MinGW Debug"
+			],
+			"dependsOrder": "sequence",
+			"problemMatcher": []
+		},
+		{
+			"label": "Build MinGW Release",
+			"type": "shell",
+			"command": "cmake --build build_mingw_release",
+			"options": {
+				"cwd": "${workspaceFolder}",
+				"env": {
+					"QTDIR": "${config:mingwQtRoot}",
+					"PATH": "${config:mingwQtRoot}/bin;${config:mingwOpenCvBin};${env:PATH}"
+				}
+			},
+			"dependsOn": [
+				"Configure MinGW Release"
+			],
+			"dependsOrder": "sequence",
+			"problemMatcher": []
+		}
+	]
+}
