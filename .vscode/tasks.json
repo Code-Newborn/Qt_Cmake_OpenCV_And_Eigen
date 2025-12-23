@@ -2,26 +2,54 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"label": "Configure MinGW Debug",
-			"type": "shell",
-			"command": "cmake -S . -B build_mingw_debug -G \"MinGW Makefiles\" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_C_COMPILER=${config:mingwGcc} -DCMAKE_CXX_COMPILER=${config:mingwGxx}",
+			"label": "Configure MinGW Debug", // Debug 模式配置任务
+			"type": "process", // 用 process 避免 shell 引号/转义问题
+			"command": "cmake",
+			"args": [
+				"-S",
+				".",
+				"-B",
+				"build_mingw_debug",
+				"-G",
+				"MinGW Makefiles",
+				"-DCMAKE_BUILD_TYPE=Debug",
+				"-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+				"-DCMAKE_C_COMPILER=${config:mingwGcc}",
+				"-DCMAKE_CXX_COMPILER=${config:mingwGxx}",
+				"-DCMAKE_PREFIX_PATH=${config:mingwQtRoot}", // Qt SDK 根目录
+				"-DmingwOpenCvRoot=${config:mingwOpenCvRoot}" // OpenCV SDK 根目录
+			],
 			"options": {
 				"cwd": "${workspaceFolder}"
 			},
 			"problemMatcher": []
 		},
 		{
-			"label": "Configure MinGW Release",
-			"type": "shell",
-			"command": "cmake -S . -B build_mingw_release -G \"MinGW Makefiles\" -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_C_COMPILER=${config:mingwGcc} -DCMAKE_CXX_COMPILER=${config:mingwGxx}",
+			"label": "Configure MinGW Release", // Release 模式配置任务
+			"type": "process", // 用 process 避免 shell 引号/转义问题
+			"command": "cmake",
+			"args": [
+				"-S",
+				".",
+				"-B",
+				"build_mingw_release",
+				"-G",
+				"MinGW Makefiles",
+				"-DCMAKE_BUILD_TYPE=Release",
+				"-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+				"-DCMAKE_C_COMPILER=${config:mingwGcc}",
+				"-DCMAKE_CXX_COMPILER=${config:mingwGxx}",
+				"-DCMAKE_PREFIX_PATH=${config:mingwQtRoot}", // Qt SDK 根目录
+				"-DmingwOpenCvRoot=${config:mingwOpenCvRoot}" // OpenCV SDK 根目录
+			],
 			"options": {
 				"cwd": "${workspaceFolder}"
 			},
 			"problemMatcher": []
 		},
 		{
-			"label": "Build MinGW Debug",
-			"type": "shell",
+			"label": "Build MinGW Debug", // Debug 模式构建任务
+			"type": "shell", // 用 shell 以支持 env 设置
 			"command": "cmake --build build_mingw_debug",
 			"options": {
 				"cwd": "${workspaceFolder}",
@@ -38,8 +66,8 @@
 			"problemMatcher": []
 		},
 		{
-			"label": "Build MinGW Release",
-			"type": "shell",
+			"label": "Build MinGW Release", // Release 模式构建任务
+			"type": "shell", // 用 shell 以支持 env 设置
 			"command": "cmake --build build_mingw_release",
 			"options": {
 				"cwd": "${workspaceFolder}",

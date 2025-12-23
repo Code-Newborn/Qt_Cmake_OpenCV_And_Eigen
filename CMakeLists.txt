@@ -1,51 +1,80 @@
 cmake_minimum_required(VERSION 3.16) # 要求 CMake 的最小版本
 
-project(Qt_Cmake_OpenCV_And_Eigen VERSION 0.1.0) # 定义工程名称和版本
+project(Qt_Cmake_OpenCV_And_Eigen LANGUAGES CXX) # 定义工程名称和版本
 
-# 指定 .h 头文件目录列表
-set(Include_DIR
-    ./Eigen
-    ./include
-)
+# C++ 标准
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# 添加 .h 头文件目录到项目
-include_directories(${Include_DIR})
-# include_directories(${CMAKE_CURRENT_SOURCE_DIR})   # 如需包含 CMakeLists 所在目录可打开
-
-# 查找 OpenCV（使用你指定的路径）
-find_package(OpenCV
-    PATHS D:/OpenCV-4.5.0-withContribNonfree-MinGW730-Qt # OpenCVConfig.cmake 所在路径
-    NO_DEFAULT_PATH
-    REQUIRED
-)
-
-if (OpenCV_FOUND)
-    include_directories(${OpenCV_INCLUDE_DIRS}) # 包含 OpenCV 头文件路径
-    message(${OpenCV_LIBS})                     # 打印 OpenCV 库列表
-else()
-    message("OpenCV not found, so we won't build the project.")
-endif()
-
-# 指定 .cpp 源文件列表并存于变量 SRCS_LIST
-file(GLOB SRCS_LIST
-    ./*.cpp
-    ./src/*.cpp
-)
-
-# 基于指定的源文件，创建可执行文件
-add_executable(${PROJECT_NAME} ${SRCS_LIST})
-
-# ✅ 关键：根据配置把 exe 输出到 ./Debug 或 ./Release
-# MinGW Makefiles 这种单配置生成器会根据 CMAKE_BUILD_TYPE 产生 Debug / Release
-set_target_properties(${PROJECT_NAME} PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/$<CONFIG>"
-)
-
+# 生成 compile_commands.json（VS Code IntelliSense 必需）
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# 链接 目标和其依赖项所要使用的库
-# 需要将 D:/OpenCV-4.5.0-withContribNonfree-MinGW730-Qt/x64/mingw/bin 加入 PATH
-target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS})
+# MSVC 编码与告警控制
+if(MSVC)
+    add_compile_options(
+        "/source-charset:utf-8"
+        "/Zc:__cplusplus"
+    )
+endif()
+
+# ================= Qt & OpenCV =================
+# Qt 的路径通过 tasks.json 的 -DCMAKE_PREFIX_PATH 传入，这里只需要 find_package
+find_package(Qt5 REQUIRED COMPONENTS Core Gui Widgets SerialPort PrintSupport)
+
+# OpenCV：根据你 launch.json 中的路径，设置 OpenCV_DIR，然后 find_package
+# 如有变化，只改这一个路径即可
+set(mingwOpenCvRoot "" CACHE PATH "Path to OpenCV installation root")
+set(mingwOpenCV_INCLUDE_DIR "${mingwOpenCvRoot}/include")
+set(mingwOpenCV_LIB_DIR     "${mingwOpenCvRoot}/x64/mingw/lib")
+file(GLOB mingwOpenCV_LIBS "${mingwOpenCV_LIB_DIR}/*.a" "${mingwOpenCV_LIB_DIR}/*.lib")
+
+# ================= 输出与包含路径 =================
+# 让 VS 把 exe 放在 <工程根>/Debug 和 <工程根>/Release，配合你的 launch.json
+set(EXECUTABLE_OUTPUT_PATH ${CMAKE_CURRENT_SOURCE_DIR})
+
+# 头文件路径
+set(PROJECT_INCLUDE_DIRS
+    ${CMAKE_CURRENT_SOURCE_DIR}/Eigen
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+# ================= 源文件 头文件 =================
+file(GLOB SRC_FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
+)
+
+file(GLOB HEADER_FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/*.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h
+)
+
+# 可执行文件
+add_executable(${PROJECT_NAME}
+    ${SRC_FILES}
+)
+
+# 包含目录
+target_include_directories(${PROJECT_NAME} PRIVATE
+    ${PROJECT_INCLUDE_DIRS}
+    ${mingwOpenCV_INCLUDE_DIR}
+)
+
+# 链接库
+target_link_libraries(${PROJECT_NAME} PRIVATE
+    Qt5::Core
+    Qt5::Gui
+    Qt5::Widgets
+    Qt5::SerialPort
+    Qt5::PrintSupport
+    ${mingwOpenCV_LIBS}
+)
+
+# 输出目录（Debug / Release）
+set_target_properties(${PROJECT_NAME} PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY_DEBUG   ${CMAKE_SOURCE_DIR}/Debug
+    RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_SOURCE_DIR}/Release
+)
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
