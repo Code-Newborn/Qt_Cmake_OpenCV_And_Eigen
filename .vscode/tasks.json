@@ -1,9 +1,101 @@
 {
 	"version": "2.0.0",
+	"inputs": [
+		{
+			"id": "cfg",
+			"type": "pickString",
+			"description": "Select build configuration",
+			"options": [
+				"Debug",
+				"Release"
+			],
+			"default": "Release"
+		}
+	],
 	"tasks": [
 		{
-			"label": "Configure MinGW Debug", // Debug 模式配置任务
-			"type": "process", // 用 process 避免 shell 引号/转义问题
+			"label": "configure",
+			"type": "process",
+			"command": "cmake",
+			"args": [
+				"-S",
+				".",
+				"-B",
+				"build_mingw_${input:cfg}",
+				"-G",
+				"MinGW Makefiles",
+				"-DCMAKE_BUILD_TYPE=${input:cfg}",
+				"-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+				"-DCMAKE_C_COMPILER=${config:mingwGcc}",
+				"-DCMAKE_CXX_COMPILER=${config:mingwGxx}",
+				"-DCMAKE_PREFIX_PATH=${config:mingwQtRoot}",
+				"-DmingwOpenCvRoot=${config:mingwOpenCvRoot}",
+				"-DqtBinDir=${config:mingwQtRoot}/bin"
+			],
+			"problemMatcher": []
+		},
+		{
+			"label": "build",
+			"type": "shell",
+			"command": "cmake",
+			"args": [
+				"--build",
+				"build_mingw_${input:cfg}",
+				"-j"
+			],
+			"dependsOn": [
+				"configure"
+			],
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		},
+		{
+			"label": "install",
+			"type": "shell",
+			"command": "cmake",
+			"args": [
+				"--install",
+				"build_mingw_${input:cfg}",
+				"--prefix",
+				"build_mingw_${input:cfg}/dist"
+			],
+			"dependsOn": [
+				"build"
+			],
+			"problemMatcher": []
+		},
+		{
+			"label": "cpack",
+			"type": "shell",
+			"command": "cpack",
+			"args": [
+				"--config",
+				"build_mingw_${input:cfg}/CPackConfig.cmake"
+			],
+			"dependsOn": [
+				"install"
+			],
+			"problemMatcher": []
+		},
+		{
+			"label": "clean",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"if exist \"build_mingw_${input:cfg}\" rmdir /s /q \"build_mingw_${input:cfg}\""
+			],
+			"problemMatcher": []
+		},
+		// ===== 固定 Debug / Release 任务（供 launch.json 使用，不弹选择） =====
+		{
+			"label": "configure (debug)",
+			"type": "process",
 			"command": "cmake",
 			"args": [
 				"-S",
@@ -16,17 +108,31 @@
 				"-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
 				"-DCMAKE_C_COMPILER=${config:mingwGcc}",
 				"-DCMAKE_CXX_COMPILER=${config:mingwGxx}",
-				"-DCMAKE_PREFIX_PATH=${config:mingwQtRoot}", // Qt SDK 根目录
-				"-DmingwOpenCvRoot=${config:mingwOpenCvRoot}" // OpenCV SDK 根目录
+				"-DCMAKE_PREFIX_PATH=${config:mingwQtRoot}",
+				"-DmingwOpenCvRoot=${config:mingwOpenCvRoot}",
+				"-DqtBinDir=${config:mingwQtRoot}/bin"
 			],
-			"options": {
-				"cwd": "${workspaceFolder}"
-			},
 			"problemMatcher": []
 		},
 		{
-			"label": "Configure MinGW Release", // Release 模式配置任务
-			"type": "process", // 用 process 避免 shell 引号/转义问题
+			"label": "build (debug)",
+			"type": "shell",
+			"command": "cmake",
+			"args": [
+				"--build",
+				"build_mingw_debug",
+				"-j"
+			],
+			"dependsOn": [
+				"configure (debug)"
+			],
+			"problemMatcher": [
+				"$gcc"
+			]
+		},
+		{
+			"label": "configure (release)",
+			"type": "process",
 			"command": "cmake",
 			"args": [
 				"-S",
@@ -39,48 +145,27 @@
 				"-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
 				"-DCMAKE_C_COMPILER=${config:mingwGcc}",
 				"-DCMAKE_CXX_COMPILER=${config:mingwGxx}",
-				"-DCMAKE_PREFIX_PATH=${config:mingwQtRoot}", // Qt SDK 根目录
-				"-DmingwOpenCvRoot=${config:mingwOpenCvRoot}" // OpenCV SDK 根目录
+				"-DCMAKE_PREFIX_PATH=${config:mingwQtRoot}",
+				"-DmingwOpenCvRoot=${config:mingwOpenCvRoot}",
+				"-DqtBinDir=${config:mingwQtRoot}/bin"
 			],
-			"options": {
-				"cwd": "${workspaceFolder}"
-			},
 			"problemMatcher": []
 		},
 		{
-			"label": "Build MinGW Debug", // Debug 模式构建任务
-			"type": "shell", // 用 shell 以支持 env 设置
-			"command": "cmake --build build_mingw_debug",
-			"options": {
-				"cwd": "${workspaceFolder}",
-				"env": {
-					// 运行/链接时需要找到 Qt / OpenCV DLL
-					"QTDIR": "${config:mingwQtRoot}",
-					"PATH": "${config:mingwQtRoot}/bin;${config:mingwOpenCvBin};${env:PATH}"
-				}
-			},
-			"dependsOn": [
-				"Configure MinGW Debug"
+			"label": "build (release)",
+			"type": "shell",
+			"command": "cmake",
+			"args": [
+				"--build",
+				"build_mingw_release",
+				"-j"
 			],
-			"dependsOrder": "sequence",
-			"problemMatcher": []
-		},
-		{
-			"label": "Build MinGW Release", // Release 模式构建任务
-			"type": "shell", // 用 shell 以支持 env 设置
-			"command": "cmake --build build_mingw_release",
-			"options": {
-				"cwd": "${workspaceFolder}",
-				"env": {
-					"QTDIR": "${config:mingwQtRoot}",
-					"PATH": "${config:mingwQtRoot}/bin;${config:mingwOpenCvBin};${env:PATH}"
-				}
-			},
 			"dependsOn": [
-				"Configure MinGW Release"
+				"configure (release)"
 			],
-			"dependsOrder": "sequence",
-			"problemMatcher": []
+			"problemMatcher": [
+				"$gcc"
+			]
 		}
 	]
 }

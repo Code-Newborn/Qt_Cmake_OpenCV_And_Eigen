@@ -1,15 +1,17 @@
 {
     "configurations": [
         {
-            "name": "Windows",
-            "compileCommands": "${workspaceFolder}/build_mingw_debug/compile_commands.json",
+            "name": "Windows-MinGW",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "${config:mingwOpenCvRoot}/include"
+            ],
             "defines": [
                 "_DEBUG",
                 "UNICODE",
                 "_UNICODE"
             ],
-            "windowsSdkVersion": "10.0.22621.0",
-            "compilerPath": "g++.exe",
+            "compilerPath": "${config:mingwGxx}",
             "cStandard": "c17",
             "cppStandard": "c++17",
             "intelliSenseMode": "windows-gcc-x64"

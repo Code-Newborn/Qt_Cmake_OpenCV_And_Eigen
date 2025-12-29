@@ -1,5 +1,6 @@
 #include <iostream>
 #include <process.h>
+#include <windows.h>
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -11,10 +12,13 @@
 #include "detectAruco.h"
 
 int main() {
-    siftPoint_toshow( "../lena.jpg", 400 );  // SIFT特征点检测
+    SetConsoleOutputCP( CP_UTF8 );  // 设置控制台输出为UTF-8
+    SetConsoleCP( CP_UTF8 );        // 设置控制台输入为UTF-8
+
+    siftPoint_toshow( "..\\..\\lena.jpg", 400 );  // SIFT特征点检测，相对exe路径
     cv::waitKey( 0 );
 
-    detectAruco( "../Camera1.png", 22 );  // 识别Aruco码
+    detectAruco( "..\\..\\Camera1.png", 22 );  // 识别Aruco码，相对exe路径
     cv::waitKey( 0 );
 
     Eigen::Matrix3f rotation_mat;

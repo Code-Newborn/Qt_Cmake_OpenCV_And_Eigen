@@ -1,15 +1,16 @@
-cmake_minimum_required(VERSION 3.16) # 要求 CMake 的最小版本
+cmake_minimum_required(VERSION 3.16)
 
-project(Qt_Cmake_OpenCV_And_Eigen LANGUAGES CXX) # 定义工程名称和版本
+project(Qt_Cmake_OpenCV_And_Eigen
+    VERSION 1.0.0
+    LANGUAGES CXX
+)
 
-# C++ 标准
+# C++ 标准（如无硬性要求建议至少 17；这里尊重你原来的 11）
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# 生成 compile_commands.json（VS Code IntelliSense 必需）
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# MSVC 编码与告警控制
 if(MSVC)
     add_compile_options(
         "/source-charset:utf-8"
@@ -18,49 +19,42 @@ if(MSVC)
 endif()
 
 # ================= Qt & OpenCV =================
-# Qt 的路径通过 tasks.json 的 -DCMAKE_PREFIX_PATH 传入，这里只需要 find_package
+# Qt：通过 -DCMAKE_PREFIX_PATH 指向 Qt 安装前缀即可
 find_package(Qt5 REQUIRED COMPONENTS Core Gui Widgets SerialPort PrintSupport)
 
-# OpenCV：根据你 launch.json 中的路径，设置 OpenCV_DIR，然后 find_package
-# 如有变化，只改这一个路径即可
+# OpenCV：通过 -DmingwOpenCvRoot=... 传入
 set(mingwOpenCvRoot "" CACHE PATH "Path to OpenCV installation root")
 set(mingwOpenCV_INCLUDE_DIR "${mingwOpenCvRoot}/include")
 set(mingwOpenCV_LIB_DIR     "${mingwOpenCvRoot}/x64/mingw/lib")
+set(mingwOpenCV_BIN_DIR     "${mingwOpenCvRoot}/x64/mingw/bin")
+
+# 你的写法是把 lib 目录下所有库都链进来（能用，但不够精准）
+# 这里保持兼容（建议后续改为按需链接 opencv_core/opencv_imgproc/...）
 file(GLOB mingwOpenCV_LIBS "${mingwOpenCV_LIB_DIR}/*.a" "${mingwOpenCV_LIB_DIR}/*.lib")
 
-# ================= 输出与包含路径 =================
-# 让 VS 把 exe 放在 <工程根>/Debug 和 <工程根>/Release，配合你的 launch.json
-set(EXECUTABLE_OUTPUT_PATH ${CMAKE_CURRENT_SOURCE_DIR})
+# ================= 输出目录（关键：走 build 目录） =================
+# 统一让可执行文件输出到 <build>/bin，便于 tasks/launch 固化路径
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
-# 头文件路径
+# ================= 头文件路径 =================
 set(PROJECT_INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/Eigen
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-# ================= 源文件 头文件 =================
+# ================= 源文件 =================
 file(GLOB SRC_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
 )
 
-file(GLOB HEADER_FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/*.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h
-)
+add_executable(${PROJECT_NAME} ${SRC_FILES})
 
-# 可执行文件
-add_executable(${PROJECT_NAME}
-    ${SRC_FILES}
-)
-
-# 包含目录
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${PROJECT_INCLUDE_DIRS}
     ${mingwOpenCV_INCLUDE_DIR}
 )
 
-# 链接库
 target_link_libraries(${PROJECT_NAME} PRIVATE
     Qt5::Core
     Qt5::Gui
@@ -70,12 +64,47 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     ${mingwOpenCV_LIBS}
 )
 
-# 输出目录（Debug / Release）
-set_target_properties(${PROJECT_NAME} PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY_DEBUG   ${CMAKE_SOURCE_DIR}/Debug
-    RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_SOURCE_DIR}/Release
+# ================= install（发布目录：exe + DLL） =================
+# 1) 安装 exe 到 dist 根目录
+install(TARGETS ${PROJECT_NAME}
+    RUNTIME DESTINATION .
 )
 
-set(CPACK_PROJECT_NAME ${PROJECT_NAME})
-set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
+# 2) 复制 OpenCV DLL（如果你用的是 DLL 版 OpenCV）
+#    如果你是纯静态 OpenCV（只 .a 没有 dll），这一段不会拷贝到任何东西（无害）
+if(WIN32)
+    file(GLOB OPENCV_RUNTIME_DLLS "${mingwOpenCV_BIN_DIR}/*.dll")
+    if(OPENCV_RUNTIME_DLLS)
+        install(FILES ${OPENCV_RUNTIME_DLLS} DESTINATION .)
+    endif()
+endif()
+
+# 3) 复制 Qt DLL：用 windeployqt 部署到 dist（CMake 3.16 推荐做法）
+set(qtBinDir "" CACHE PATH "Path to Qt bin directory that contains windeployqt.exe")
+
+if(WIN32)
+    if(qtBinDir)
+        set(WINDEPLOYQT_EXE "${qtBinDir}/windeployqt.exe")
+    else()
+        set(WINDEPLOYQT_EXE "windeployqt.exe")
+    endif()
+
+    # 注意：不要依赖 dist 里已经存在 exe；直接对 build 产物运行
+    # CMAKE_RUNTIME_OUTPUT_DIRECTORY 在本工程中是 ${CMAKE_BINARY_DIR}/bin
+    install(CODE
+        "execute_process(
+            COMMAND \"${WINDEPLOYQT_EXE}\"
+                    \"${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${PROJECT_NAME}.exe\"
+                    --no-translations
+            WORKING_DIRECTORY \"\${CMAKE_INSTALL_PREFIX}\"
+        )"
+    )
+endif()
+
+# ================= CPack（ZIP） =================
+set(CPACK_GENERATOR "ZIP")
+set(CPACK_PACKAGE_NAME "${PROJECT_NAME}")
+set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
+set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-windows")
+
 include(CPack)
