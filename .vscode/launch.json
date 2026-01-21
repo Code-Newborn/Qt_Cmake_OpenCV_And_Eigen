@@ -13,7 +13,7 @@
             "environment": [
                 {
                     "name": "PATH",
-                    "value": "${config:mingwQtRoot}/bin;${config:mingwOpenCvBin};${env:PATH}"
+                    "value": "${config:mingwQtRoot}/bin;${config:mingwOpenCvBin};${env:PATH}" // 运行环境
                 }
             ],
             "externalConsole": false
@@ -30,7 +30,7 @@
             "environment": [
                 {
                     "name": "PATH",
-                    "value": "${config:mingwQtRoot}/bin;${config:mingwOpenCvBin};${env:PATH}"
+                    "value": "${config:mingwQtRoot}/bin;${config:mingwOpenCvBin};${env:PATH}" // 运行环境
                 }
             ],
             "externalConsole": false

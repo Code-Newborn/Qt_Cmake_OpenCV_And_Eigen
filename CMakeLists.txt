@@ -1,110 +1,107 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(Qt_Cmake_OpenCV_And_Eigen
-    VERSION 1.0.0
-    LANGUAGES CXX
-)
+project(
+  Qt_Cmake_OpenCV_And_Eigen
+  VERSION 1.0.0
+  LANGUAGES CXX)
 
-# C++ 标准（如无硬性要求建议至少 17；这里尊重你原来的 11）
+# 基础设置（保持原行为）
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-if(MSVC)
-    add_compile_options(
-        "/source-charset:utf-8"
-        "/Zc:__cplusplus"
-    )
-endif()
-
-# ================= Qt & OpenCV =================
-# Qt：通过 -DCMAKE_PREFIX_PATH 指向 Qt 安装前缀即可
-find_package(Qt5 REQUIRED COMPONENTS Core Gui Widgets SerialPort PrintSupport)
-
-# OpenCV：通过 -DmingwOpenCvRoot=... 传入
-set(mingwOpenCvRoot "" CACHE PATH "Path to OpenCV installation root")
-set(mingwOpenCV_INCLUDE_DIR "${mingwOpenCvRoot}/include")
-set(mingwOpenCV_LIB_DIR     "${mingwOpenCvRoot}/x64/mingw/lib")
-set(mingwOpenCV_BIN_DIR     "${mingwOpenCvRoot}/x64/mingw/bin")
-
-# 你的写法是把 lib 目录下所有库都链进来（能用，但不够精准）
-# 这里保持兼容（建议后续改为按需链接 opencv_core/opencv_imgproc/...）
-file(GLOB mingwOpenCV_LIBS "${mingwOpenCV_LIB_DIR}/*.a" "${mingwOpenCV_LIB_DIR}/*.lib")
-
-# ================= 输出目录（关键：走 build 目录） =================
-# 统一让可执行文件输出到 <build>/bin，便于 tasks/launch 固化路径
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
-# ================= 头文件路径 =================
-set(PROJECT_INCLUDE_DIRS
-    ${CMAKE_CURRENT_SOURCE_DIR}/Eigen
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
+if(MSVC)
+  add_compile_options("/source-charset:utf-8" "/Zc:__cplusplus")
+endif()
 
-# ================= 源文件 =================
-file(GLOB SRC_FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
-)
+# 依赖开关
+option(PROJECT_USE_QT "Enable Qt" ON)
+option(PROJECT_USE_OPENCV "Enable OpenCV" ON)
+option(PROJECT_USE_EIGEN "Enable Eigen" ON)
+
+# ---------- Qt (manual root) ----------
+if(PROJECT_USE_QT)
+  set(mingwQtRoot
+      ""
+      CACHE PATH "Path to Qt installation root")
+  set(_qt_inc "${mingwQtRoot}/include")
+  set(_qt_lib "${mingwQtRoot}/lib")
+  file(GLOB _qt_libs "${_qt_lib}/*.a" "${_qt_lib}/*.lib"
+  )# 直接 glob 全部 .lib 可能引发重复符号、链接顺序问题或引入不必要模块。
+
+  add_library(project_qt INTERFACE)
+  add_library(project::qt ALIAS project_qt)
+  target_include_directories(project_qt INTERFACE "${_qt_inc}")
+  target_link_libraries(project_qt INTERFACE ${_qt_libs})
+endif()
+
+# ---------- OpenCV (MinGW root) ----------
+if(PROJECT_USE_OPENCV)
+  set(mingwOpenCvRoot
+      ""
+      CACHE PATH "Path to OpenCV installation root") # INFO settings.json 中修改路径
+  set(_opencv_inc "${mingwOpenCvRoot}/include")
+  set(_opencv_lib "${mingwOpenCvRoot}/x64/mingw/lib")
+  file(GLOB _opencv_libs "${_opencv_lib}/*.a" "${_opencv_lib}/*.lib")
+
+  add_library(project_opencv INTERFACE)
+  add_library(project::opencv ALIAS project_opencv)
+  target_include_directories(project_opencv INTERFACE "${_opencv_inc}")
+  target_link_libraries(project_opencv INTERFACE ${_opencv_libs})
+endif()
+
+# ---------- Eigen ----------
+if(PROJECT_USE_EIGEN)
+  set(mingwEigenRoot
+      ""
+      CACHE PATH "Path to Eigen root") # INFO settings.json 修改路径
+  set(_eigen_inc "${mingwEigenRoot}")
+  set(_eigen_lib "${mingwEigenRoot}/lib") # _eigen_libs 为空时，CMake 行为是安全的
+  file(GLOB _eigen_libs "${_eigen_lib}/*.a" "${_eigen_lib}/*.lib")
+
+  add_library(project_eigen INTERFACE)
+  add_library(project::eigen ALIAS project_eigen)
+  target_include_directories(project_eigen INTERFACE "${_eigen_inc}")
+  target_link_libraries(project_eigen INTERFACE ${_eigen_libs})
+endif()
+
+# ---------- Sources ----------
+file(GLOB SRC_FILES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
+     "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
 
 add_executable(${PROJECT_NAME} ${SRC_FILES})
 
-target_include_directories(${PROJECT_NAME} PRIVATE
-    ${PROJECT_INCLUDE_DIRS}
-    ${mingwOpenCV_INCLUDE_DIR}
-)
+# ---------- Headers ----------
+target_include_directories(${PROJECT_NAME}
+                           PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
-target_link_libraries(${PROJECT_NAME} PRIVATE
-    Qt5::Core
-    Qt5::Gui
-    Qt5::Widgets
-    Qt5::SerialPort
-    Qt5::PrintSupport
-    ${mingwOpenCV_LIBS}
-)
-
-# ================= install（发布目录：exe + DLL） =================
-# 1) 安装 exe 到 dist 根目录
-install(TARGETS ${PROJECT_NAME}
-    RUNTIME DESTINATION .
-)
-
-# 2) 复制 OpenCV DLL（如果你用的是 DLL 版 OpenCV）
-#    如果你是纯静态 OpenCV（只 .a 没有 dll），这一段不会拷贝到任何东西（无害）
-if(WIN32)
-    file(GLOB OPENCV_RUNTIME_DLLS "${mingwOpenCV_BIN_DIR}/*.dll")
-    if(OPENCV_RUNTIME_DLLS)
-        install(FILES ${OPENCV_RUNTIME_DLLS} DESTINATION .)
-    endif()
+# ---------- Link ----------
+if(PROJECT_USE_QT)
+  target_link_libraries(${PROJECT_NAME} PRIVATE project::qt)
+endif()
+if(PROJECT_USE_OPENCV)
+  target_link_libraries(${PROJECT_NAME} PRIVATE project::opencv)
+endif()
+if(PROJECT_USE_EIGEN)
+  target_link_libraries(${PROJECT_NAME} PRIVATE project::eigen)
 endif()
 
-# 3) 复制 Qt DLL：用 windeployqt 部署到 dist（CMake 3.16 推荐做法）
-set(qtBinDir "" CACHE PATH "Path to Qt bin directory that contains windeployqt.exe")
-
-if(WIN32)
-    if(qtBinDir)
-        set(WINDEPLOYQT_EXE "${qtBinDir}/windeployqt.exe")
-    else()
-        set(WINDEPLOYQT_EXE "windeployqt.exe")
-    endif()
-
-    # 注意：不要依赖 dist 里已经存在 exe；直接对 build 产物运行
-    # CMAKE_RUNTIME_OUTPUT_DIRECTORY 在本工程中是 ${CMAKE_BINARY_DIR}/bin
-    install(CODE
-        "execute_process(
-            COMMAND \"${WINDEPLOYQT_EXE}\"
-                    \"${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${PROJECT_NAME}.exe\"
-                    --no-translations
-            WORKING_DIRECTORY \"\${CMAKE_INSTALL_PREFIX}\"
-        )"
-    )
-endif()
-
-# ================= CPack（ZIP） =================
-set(CPACK_GENERATOR "ZIP")
-set(CPACK_PACKAGE_NAME "${PROJECT_NAME}")
-set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
-set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-windows")
-
-include(CPack)
+# ================= Extension template =================
+# option(PROJECT_USE_XXX "Enable XXX" ON)
+# if(PROJECT_USE_XXX)
+#     set(XXX_ROOT "" CACHE PATH "Path to XXX root")
+#     set(_xxx_inc "${XXX_ROOT}/include")
+#     set(_xxx_lib "${XXX_ROOT}/lib")
+#     file(GLOB _xxx_libs "${_xxx_lib}/*.a" "${_xxx_lib}/*.lib")
+#
+#     add_library(project_xxx INTERFACE)
+#     add_library(project::xxx ALIAS project_xxx)
+#     target_include_directories(project_xxx INTERFACE "${_xxx_inc}")
+#     target_link_libraries(project_xxx INTERFACE ${_xxx_libs})
+# endif()
+#
+# if(PROJECT_USE_XXX)
+#     target_link_libraries(${PROJECT_NAME} PRIVATE project::xxx)
+# endif()
